@@ -469,6 +469,7 @@ class _PipeReaderThread(threading.Thread):
             self.read_pipe, self.write_pipe = win32pipe.FdCreatePipe(None, 0, binary_mode)
         else:
             self.read_pipe, self.write_pipe = os.pipe()
+            self.read_cpipe, self.write_cpipe = os.pipe()
 
         # special flag used to stop the pipe reader thread
         self.stop_flag = False
@@ -507,8 +508,8 @@ class _PipeReaderThread(threading.Thread):
     def _run_posix(self) -> None:
         """Run the thread, handling pipes in the POSIX way."""
         while True:
-            rlist, _, _ = select.select([self.read_pipe], [], [], 0.1)
-            if rlist:
+            rlist, _, _ = select.select([self.read_pipe, self.read_cpipe], [], [])
+            if self.read_pipe in rlist:
                 data = os.read(self.read_pipe, _PIPE_READER_CHUNK_SIZE)
                 self._write(data)
             elif self.stop_flag:
@@ -551,9 +552,13 @@ class _PipeReaderThread(threading.Thread):
         self.stop_flag = True
         if _WINDOWS_MODE:
             os.write(self.write_pipe, self.UNBLOCK_BYTE)
+        else:
+            os.write(self.write_cpipe, self.UNBLOCK_BYTE)
         self.join()
         os.close(self.write_pipe)
         os.close(self.read_pipe)
+        os.close(self.write_cpipe)
+        os.close(self.read_cpipe)
 
 
 class _StreamContextManager:

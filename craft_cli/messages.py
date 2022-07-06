@@ -552,6 +552,8 @@ class _PipeReaderThread(threading.Thread):
         if _WINDOWS_MODE:
             os.write(self.write_pipe, self.UNBLOCK_BYTE)
         self.join()
+        os.close(self.write_pipe)
+        os.close(self.read_pipe)
 
 
 class _StreamContextManager:
